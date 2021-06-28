@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chart.fullname" . }}
+  labels:
+{{ include "chart.labels" . | indent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "chart.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "chart.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+    {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      serviceAccountName: {{ template "chart.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+#      volumes:
+#      - name: frontend-settings-php
+#        secret:
+#          secretName: frontend-settings-php
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            failureThreshold: 5
+            initialDelaySeconds: 15
+            periodSeconds: 60
+            timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          #env:
+          volumeMounts: []
+          # - mountPath: /var/log/containers
+          #   name: filelogdir
+          # - name: frontend-config-volume
+          #   mountPath: /etc/apache2/sites-enabled/default-ssl.conf
+          #   subPath: etc-apache2-site-ssl.conf
+          #   readOnly: true
+          # - name: frontend-config-volume
+          #   mountPath: /etc/apache2/apache2.conf
+          #   subPath: etc-apache2.conf
+          #   readOnly: true
+          # - name: frontend-settings-php
+          #   mountPath: /var/www/astrooda/sites/default/settings.php
+          #   subPath: drupal7_sites_default_settings.php
+          #   readOnly: true                
+        
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+
